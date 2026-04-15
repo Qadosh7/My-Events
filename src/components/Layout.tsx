@@ -1,10 +1,13 @@
 import { Navigate, Outlet, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { LogOut, Calendar, LayoutDashboard } from 'lucide-react';
+import { LogOut, Calendar, LayoutDashboard, Users, CalendarDays, Settings, Gift } from 'lucide-react';
+import { useState } from 'react';
+import { ReferralModal } from '@/components/ReferralModal';
 
 export function Layout() {
   const { user, loading, signOut } = useAuth();
+  const [isReferralModalOpen, setIsReferralModalOpen] = useState(false);
 
   if (loading) {
     return (
@@ -19,44 +22,89 @@ export function Layout() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 font-bold text-xl text-primary">
-            <Calendar className="w-6 h-6" />
-            <span className="hidden sm:inline">Agenda Inteligente</span>
+    <div className="flex h-screen bg-background overflow-hidden">
+      {/* Sidebar */}
+      <aside className="w-60 bg-sidebar border-r border-sidebar-border flex flex-col shrink-0">
+        <div className="p-6 flex items-center gap-2 font-extrabold text-xl text-primary">
+          <Calendar className="w-6 h-6" />
+          <span>AgendaInteli</span>
+        </div>
+
+        <nav className="flex-1 px-4 space-y-1">
+          <Link 
+            to="/" 
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground text-sidebar-foreground"
+          >
+            <LayoutDashboard className="w-4 h-4" />
+            Dashboard
           </Link>
+          <Link 
+            to="/" 
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground text-muted-foreground"
+          >
+            <Users className="w-4 h-4" />
+            Minhas Reuniões
+          </Link>
+          <Link 
+            to="/" 
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground text-muted-foreground"
+          >
+            <CalendarDays className="w-4 h-4" />
+            Calendário
+          </Link>
+          <Link 
+            to="/" 
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground text-muted-foreground"
+          >
+            <Settings className="w-4 h-4" />
+            Configurações
+          </Link>
+          
+          <div className="pt-4">
+            <button 
+              onClick={() => setIsReferralModalOpen(true)}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-primary/10 hover:text-primary text-primary bg-primary/5 w-full text-left"
+            >
+              <Gift className="w-4 h-4" />
+              Convide e Ganhe
+            </button>
+          </div>
+        </nav>
 
-          <nav className="flex items-center gap-4">
-            <Link to="/">
-              <Button variant="ghost" size="sm" className="gap-2">
-                <LayoutDashboard className="w-4 h-4" />
-                Dashboard
-              </Button>
-            </Link>
-            <div className="h-6 w-px bg-slate-200 mx-2" />
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-slate-600 hidden md:inline">
-                {user.email}
-              </span>
-              <Button variant="outline" size="sm" onClick={signOut} className="gap-2">
-                <LogOut className="w-4 h-4" />
-                Sair
-              </Button>
-            </div>
-          </nav>
+        <div className="p-4 border-t border-sidebar-border space-y-4">
+          <div className="px-3 py-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Usuário</p>
+            <p className="text-sm font-medium truncate text-foreground">{user.email}</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={signOut} className="w-full gap-2 justify-start">
+            <LogOut className="w-4 h-4" />
+            Sair
+          </Button>
         </div>
-      </header>
+      </aside>
 
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-        <Outlet />
-      </main>
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <header className="h-16 bg-white border-b border-border flex items-center justify-between px-8 shrink-0">
+          <div className="text-sm text-muted-foreground">
+            Meus Projetos / <span className="text-foreground font-medium">Dashboard</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button size="sm">Nova Reunião</Button>
+          </div>
+        </header>
 
-      <footer className="bg-white border-t border-slate-200 py-6">
-        <div className="max-w-7xl mx-auto px-4 text-center text-sm text-slate-500">
-          &copy; {new Date().getFullYear()} Agenda Inteligente de Reuniões. Todos os direitos reservados.
-        </div>
-      </footer>
+        <main className="flex-1 overflow-y-auto p-8">
+          <div className="max-w-6xl mx-auto">
+            <Outlet />
+          </div>
+        </main>
+      </div>
+
+      <ReferralModal 
+        isOpen={isReferralModalOpen} 
+        onClose={() => setIsReferralModalOpen(false)} 
+      />
     </div>
   );
 }

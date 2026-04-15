@@ -25,7 +25,7 @@ export default function Login() {
       });
 
       if (error) throw error;
-      navigate('/');
+      navigate('/dashboard');
     } catch (error: any) {
       toast.error(error.message || 'Erro ao fazer login');
     } finally {
@@ -34,52 +34,54 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1 text-center">
-          <div className="flex justify-center mb-4">
-            <div className="p-3 bg-primary/10 rounded-full">
-              <Calendar className="w-8 h-8 text-primary" />
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md border-none shadow-2xl">
+        <CardHeader className="space-y-1 text-center pb-8">
+          <div className="flex justify-center mb-6">
+            <div className="p-4 bg-primary/10 rounded-2xl">
+              <Calendar className="w-10 h-10 text-primary" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">Bem-vindo de volta</CardTitle>
-          <CardDescription>
-            Entre com seu e-mail e senha para acessar suas reuniões
+          <CardTitle className="text-3xl font-bold tracking-tight">Agenda Inteligente</CardTitle>
+          <CardDescription className="text-base">
+            Entre para gerenciar suas reuniões profissionais
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">E-mail</Label>
+              <Label htmlFor="email" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">E-mail</Label>
               <Input
                 id="email"
                 type="email"
                 placeholder="exemplo@email.com"
+                className="h-11 bg-slate-50 border-slate-200"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
+              <Label htmlFor="password" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Senha</Label>
               <Input
                 id="password"
                 type="password"
+                className="h-11 bg-slate-50 border-slate-200"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
             </div>
           </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
-            <Button type="submit" className="w-full" disabled={loading}>
+          <CardFooter className="flex flex-col space-y-6 pt-4">
+            <Button type="submit" className="w-full h-11 text-base font-bold shadow-lg shadow-primary/20" disabled={loading}>
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-              Entrar
+              Acessar Conta
             </Button>
-            <p className="text-sm text-center text-slate-600">
-              Não tem uma conta?{' '}
-              <Link to="/register" className="text-primary hover:underline font-medium">
-                Cadastre-se
+            <p className="text-sm text-center text-muted-foreground">
+              Ainda não tem acesso?{' '}
+              <Link to="/register" className="text-primary hover:underline font-bold">
+                Criar conta gratuita
               </Link>
             </p>
           </CardFooter>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { Meeting, Topic, Break, AgendaItem, TopicParticipant } from '@/types';
+import { Meeting, Topic, Break, AgendaItem, TopicParticipant, MeetingExecutionLog } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,11 +11,20 @@ import { Separator } from '@/components/ui/separator';
 import { 
   Plus, Clock, User, Users, Trash2, GripVertical, 
   Coffee, Utensils, Save, ArrowLeft, MoreVertical,
-  Check, X, Pencil, Calendar
+  Check, X, Pencil, Calendar, Share2, FileText, PlayCircle,
+  Download, Send, CalendarDays, AlertCircle
 } from 'lucide-react';
 import { format, addMinutes } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { 
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter
+} from '@/components/ui/dialog';
+import { 
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
 import { 
   DndContext, closestCenter, KeyboardSensor, PointerSensor, 
   useSensor, useSensors, DragEndEvent 
@@ -26,6 +35,10 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { motion, AnimatePresence } from 'motion/react';
+import { useSubscription } from '@/hooks/useSubscription';
+import { UpgradeModal } from '@/components/UpgradeModal';
+
+import { analyzeMeetingPerformance } from '@/services/aiService';
 
 // --- Sortable Item Component ---
 
@@ -58,28 +71,29 @@ function SortableAgendaItem({ item, onDelete, onUpdate, onAddParticipant, onRemo
 
   return (
     <div ref={setNodeRef} style={style} className={`group ${isDragging ? 'opacity-50' : ''}`}>
-      <Card className={`mb-4 border-l-4 ${isTopic ? 'border-l-primary' : 'border-l-orange-400'} shadow-sm hover:shadow-md transition-shadow`}>
-        <CardContent className="p-4">
-          <div className="flex items-start gap-4">
-            <div {...attributes} {...listeners} className="mt-1 cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600">
-              <GripVertical className="w-5 h-5" />
+      <Card className={`border-border shadow-none transition-all ${item.itemType === 'break' ? 'bg-slate-50/50 border-dashed' : 'bg-white'}`}>
+        <CardContent className="p-3 px-4">
+          <div className="flex items-center gap-3">
+            <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-400">
+              <GripVertical className="w-4 h-4" />
             </div>
 
-            <div className="flex-1 space-y-3">
+            <div className="flex-1">
               {isEditing ? (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-3 py-1">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <Label className="text-xs">Título</Label>
+                      <Label className="text-[10px] uppercase font-bold text-muted-foreground">Título</Label>
                       <Input 
+                        className="h-8 text-sm"
                         value={editValue.title} 
                         onChange={(e) => setEditValue({ ...editValue, title: e.target.value } as any)}
-                        size={1}
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Duração (minutos)</Label>
+                      <Label className="text-[10px] uppercase font-bold text-muted-foreground">Duração (minutos)</Label>
                       <Input 
+                        className="h-8 text-sm"
                         type="number"
                         value={editValue.duration_minutes} 
                         onChange={(e) => setEditValue({ ...editValue, duration_minutes: parseInt(e.target.value) || 0 } as any)}
@@ -88,82 +102,84 @@ function SortableAgendaItem({ item, onDelete, onUpdate, onAddParticipant, onRemo
                   </div>
                   {isTopic && (
                     <div className="space-y-1">
-                      <Label className="text-xs">Apresentador</Label>
+                      <Label className="text-[10px] uppercase font-bold text-muted-foreground">Apresentador</Label>
                       <Input 
+                        className="h-8 text-sm"
                         value={(editValue as Topic).presenter_name || ''} 
                         onChange={(e) => setEditValue({ ...editValue, presenter_name: e.target.value } as any)}
                       />
                     </div>
                   )}
-                  <div className="flex justify-end gap-2">
-                    <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)}>
-                      <X className="w-4 h-4 mr-1" /> Cancelar
+                  <div className="flex justify-end gap-2 pt-1">
+                    <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setIsEditing(false)}>
+                      Cancelar
                     </Button>
-                    <Button size="sm" onClick={handleSave}>
-                      <Check className="w-4 h-4 mr-1" /> Salvar
+                    <Button size="sm" className="h-7 text-xs" onClick={handleSave}>
+                      Salvar
                     </Button>
                   </div>
                 </div>
               ) : (
                 <>
                   <div className="flex justify-between items-start">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-slate-900">{item.itemType === 'topic' ? item.title : (item as any).title}</h3>
-                        {!isTopic && (
-                          <Badge variant="secondary" className="bg-orange-100 text-orange-700 hover:bg-orange-100 border-none">
-                            {item.type === 'almoço' ? <Utensils className="w-3 h-3 mr-1" /> : <Coffee className="w-3 h-3 mr-1" />}
-                            {item.type}
-                          </Badge>
-                        )}
-                      </div>
-                      {isTopic && (item as Topic).description && (
-                        <p className="text-sm text-slate-500 mt-1">{(item as Topic).description}</p>
-                      )}
-                    </div>
                     <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600 bg-slate-100 px-2 py-1 rounded-md">
-                        <Clock className="w-4 h-4" />
+                      <div className="w-16 h-7 flex items-center justify-center text-[11px] font-bold text-primary bg-primary/5 rounded-md border border-primary/10">
                         {item.duration_minutes} min
                       </div>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsEditing(true)}>
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => onDelete(item.id, item.itemType)}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-sm text-foreground leading-none">
+                            {item.itemType === 'topic' ? item.title : (item as any).title}
+                          </h3>
+                          {!isTopic && (
+                            <Badge variant="secondary" className="h-5 text-[10px] px-1.5 bg-orange-50 text-orange-700 hover:bg-orange-50 border-orange-100">
+                              {item.type === 'almoço' ? <Utensils className="w-2.5 h-2.5 mr-1" /> : <Coffee className="w-2.5 h-2.5 mr-1" />}
+                              {item.type}
+                            </Badge>
+                          )}
+                        </div>
+                        {isTopic && (item as Topic).description && (
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{(item as Topic).description}</p>
+                        )}
                       </div>
+                    </div>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => setIsEditing(true)}>
+                        <Pencil className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => onDelete(item.id, item.itemType)}>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
                     </div>
                   </div>
 
                   {isTopic && (
-                    <div className="flex flex-wrap items-center gap-6 pt-2">
-                      <div className="flex items-center gap-2 text-sm text-slate-600">
-                        <User className="w-4 h-4 text-slate-400" />
-                        <span className="font-medium">Apresentador:</span>
+                    <div className="flex flex-wrap items-center gap-4 pt-2 mt-2 border-t border-slate-50">
+                      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                        <User className="w-3 h-3" />
+                        <span className="font-semibold text-foreground">Apresentador:</span>
                         {(item as Topic).presenter_name || 'Não definido'}
                       </div>
 
-                      <div className="flex items-center gap-2 text-sm text-slate-600">
-                        <Users className="w-4 h-4 text-slate-400" />
-                        <span className="font-medium">Participantes:</span>
+                      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                        <Users className="w-3 h-3" />
+                        <span className="font-semibold text-foreground">Participantes:</span>
                         <div className="flex flex-wrap gap-1">
                           {(item as Topic).participants?.map((p) => (
-                            <Badge key={p.id} variant="outline" className="pr-1 gap-1 group/badge">
+                            <Badge key={p.id} variant="outline" className="h-5 text-[10px] px-1.5 pr-1 gap-1 group/badge border-slate-200">
                               {p.participant_name}
                               <button 
                                 onClick={() => onRemoveParticipant(p.id)}
                                 className="hover:text-destructive transition-colors"
                               >
-                                <X className="w-3 h-3" />
+                                <X className="w-2.5 h-2.5" />
                               </button>
                             </Badge>
                           ))}
                           <div className="flex items-center ml-1">
                             <Input 
                               placeholder="Add..." 
-                              className="h-6 w-20 text-xs px-1 py-0 border-dashed"
+                              className="h-5 w-16 text-[10px] px-1.5 py-0 border-dashed bg-transparent"
                               value={newParticipant}
                               onChange={(e) => setNewParticipant(e.target.value)}
                               onKeyDown={(e) => {
@@ -197,6 +213,15 @@ export default function MeetingDetail() {
   const [items, setItems] = useState<AgendaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [shareEmail, setShareEmail] = useState('');
+  const [sharePermission, setSharePermission] = useState<'view' | 'edit'>('view');
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  const [executionLogs, setExecutionLogs] = useState<MeetingExecutionLog[]>([]);
+  const [aiAnalysis, setAiAnalysis] = useState<any>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const { isPro, loading: subLoading } = useSubscription();
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [upgradeFeature, setUpgradeFeature] = useState('');
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -231,6 +256,15 @@ export default function MeetingDetail() {
 
       const allItems = [...topics, ...breaks].sort((a, b) => a.order_index - b.order_index);
       setItems(allItems);
+
+      // Fetch logs
+      const { data: logsData } = await supabase
+        .from('meeting_execution_logs')
+        .select('*')
+        .eq('meeting_id', id)
+        .order('started_at');
+      
+      setExecutionLogs(logsData || []);
     } catch (error) {
       toast.error('Erro ao carregar dados da reunião');
       navigate('/');
@@ -292,6 +326,13 @@ export default function MeetingDetail() {
   const handleAddItem = async (type: 'topic' | 'break') => {
     if (!id) return;
     const orderIndex = items.length;
+
+    const topicsCount = items.filter(i => i.itemType === 'topic').length;
+    if (type === 'topic' && !isPro && topicsCount >= 10) {
+      setUpgradeFeature('tópicos ilimitados');
+      setIsUpgradeModalOpen(true);
+      return;
+    }
 
     try {
       if (type === 'topic') {
@@ -363,6 +404,151 @@ export default function MeetingDetail() {
     }
   };
 
+  const handleShare = async () => {
+    if (!id || !shareEmail) return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase
+        .from('shared_meetings')
+        .insert({
+          meeting_id: id,
+          owner_user_id: user.id,
+          shared_with_email: shareEmail,
+          permission: sharePermission
+        });
+
+      if (error) {
+        if (error.code === '23505') {
+          toast.error('Este usuário já tem acesso a esta reunião');
+        } else {
+          throw error;
+        }
+      } else {
+        toast.success(`Reunião compartilhada com ${shareEmail}`);
+        setShareEmail('');
+        setIsShareDialogOpen(false);
+      }
+    } catch (error) {
+      console.error('Error sharing meeting:', error);
+      toast.error('Erro ao compartilhar reunião');
+    }
+  };
+
+  const exportToPDF = () => {
+    if (!meeting) return;
+    
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Header
+    doc.setFontSize(22);
+    doc.setTextColor(30, 41, 59); // slate-800
+    doc.text(meeting.title, 14, 22);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(100, 116, 139); // slate-500
+    doc.text(`Data: ${format(new Date(meeting.date), "dd/MM/yyyy")}`, 14, 30);
+    doc.text(`Gerado por: Agenda Inteligente de Reuniões`, 14, 35);
+    
+    if (meeting.description) {
+      doc.setFontSize(12);
+      doc.setTextColor(51, 65, 85); // slate-700
+      const splitDesc = doc.splitTextToSize(meeting.description, pageWidth - 28);
+      doc.text(splitDesc, 14, 45);
+    }
+    
+    // Agenda Table
+    const tableData = items.map((item, index) => {
+      const isTopic = item.itemType === 'topic';
+      return [
+        index + 1,
+        item.title,
+        isTopic ? (item as Topic).presenter_name || '-' : 'Pausa',
+        `${item.duration_minutes} min`,
+        isTopic ? (item as Topic).participants?.map(p => p.participant_name).join(', ') || '-' : '-'
+      ];
+    });
+    
+    autoTable(doc, {
+      startY: meeting.description ? 60 : 45,
+      head: [['#', 'Tópico/Pausa', 'Responsável', 'Duração', 'Participantes']],
+      body: tableData,
+      headStyles: { fillColor: [79, 70, 229] }, // indigo-600
+      alternateRowStyles: { fillColor: [248, 250, 252] }, // slate-50
+      margin: { top: 40 },
+    });
+    
+    doc.save(`Agenda_${meeting.title.replace(/\s+/g, '_')}.pdf`);
+    toast.success('PDF exportado com sucesso!');
+  };
+
+  const exportToText = () => {
+    if (!meeting) return;
+    
+    let text = `AGENDA DE REUNIÃO: ${meeting.title}\n`;
+    text += `Data: ${format(new Date(meeting.date), "dd/MM/yyyy")}\n`;
+    if (meeting.description) text += `Descrição: ${meeting.description}\n`;
+    text += `\nPAUTA:\n`;
+    
+    items.forEach((item, index) => {
+      text += `${index + 1}. ${item.title} (${item.duration_minutes} min)\n`;
+      if (item.itemType === 'topic') {
+        if ((item as Topic).presenter_name) text += `   Responsável: ${(item as Topic).presenter_name}\n`;
+        if ((item as Topic).participants?.length) {
+          text += `   Participantes: ${(item as Topic).participants?.map(p => p.participant_name).join(', ')}\n`;
+        }
+      }
+      text += `\n`;
+    });
+    
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Agenda_${meeting.title.replace(/\s+/g, '_')}.txt`;
+    a.click();
+    toast.success('Texto exportado com sucesso!');
+  };
+
+  const exportToGoogleCalendar = () => {
+    if (!meeting) return;
+    
+    const startTime = new Date(meeting.date);
+    const endTime = addMinutes(startTime, totalDuration);
+    
+    const formatGCalDate = (date: Date) => date.toISOString().replace(/-|:|\.\d+/g, "");
+    
+    const details = `AGENDA:\n${items.map((item, i) => `${i+1}. ${item.title} (${item.duration_minutes} min)`).join('\n')}\n\n${meeting.description || ''}`;
+    
+    const params = new URLSearchParams({
+      action: 'TEMPLATE',
+      text: meeting.title,
+      dates: `${formatGCalDate(startTime)}/${formatGCalDate(endTime)}`,
+      details: details,
+      location: 'Online / Meeting Room',
+    });
+    
+    window.open(`https://www.google.com/calendar/render?${params.toString()}`, '_blank');
+    toast.success('Abrindo Google Calendar...');
+  };
+
+  const handleAnalyzePerformance = async () => {
+    if (!meeting || executionLogs.length === 0) return;
+    setIsAnalyzing(true);
+    try {
+      const topics = items.filter(i => i.itemType === 'topic') as Topic[];
+      const breaks = items.filter(i => i.itemType === 'break') as Break[];
+      const analysis = await analyzeMeetingPerformance(meeting.title, executionLogs, topics, breaks);
+      setAiAnalysis(analysis);
+    } catch (error) {
+      toast.error('Erro ao analisar performance');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   const handleAddParticipant = async (topicId: string, name: string) => {
     try {
       const { data, error } = await supabase
@@ -420,44 +606,177 @@ export default function MeetingDetail() {
   if (!meeting) return null;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <div className="flex-1">
-          <h1 className="text-3xl font-bold text-slate-900">{meeting.title}</h1>
-          <div className="flex items-center gap-4 mt-2 text-slate-500">
-            <div className="flex items-center gap-1.5">
-              <Calendar className="w-4 h-4" />
-              {format(new Date(meeting.date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Clock className="w-4 h-4" />
-              {format(new Date(meeting.date), "HH:mm")}
-            </div>
+    <div className="space-y-6">
+      <div className="meeting-info flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div className="title-area">
+          <div className="flex items-center gap-3 mb-2">
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate('/')}>
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <h1 className="text-2xl font-bold text-foreground">{meeting.title}</h1>
           </div>
+          <p className="text-muted-foreground text-sm max-w-2xl">{meeting.description || 'Sem descrição definida para esta reunião.'}</p>
         </div>
+        
         <div className="flex items-center gap-2">
-          {isSaving && (
-            <div className="flex items-center gap-2 text-xs text-slate-400 mr-2">
-              <Save className="w-3 h-3 animate-pulse" />
-              Salvando...
-            </div>
-          )}
-          <Button variant="outline" className="gap-2" onClick={() => handleAddItem('break')}>
-            <Coffee className="w-4 h-4" />
-            Adicionar Pausa
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="gap-2"
+            onClick={() => {
+              if (!isPro) {
+                setUpgradeFeature('compartilhamento de reuniões');
+                setIsUpgradeModalOpen(true);
+              } else {
+                setIsShareDialogOpen(true);
+              }
+            }}
+          >
+            <Share2 className="w-4 h-4" /> Compartilhar
           </Button>
-          <Button className="gap-2" onClick={() => handleAddItem('topic')}>
-            <Plus className="w-4 h-4" />
-            Adicionar Tópico
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Download className="w-4 h-4" /> Exportar
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem 
+                onClick={() => {
+                  if (!isPro) {
+                    setUpgradeFeature('exportação PDF profissional');
+                    setIsUpgradeModalOpen(true);
+                  } else {
+                    exportToPDF();
+                  }
+                }} 
+                className="gap-2"
+              >
+                <FileText className="w-4 h-4" /> PDF Profissional
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={exportToText} className="gap-2">
+                <FileText className="w-4 h-4" /> Texto Simples
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={exportToGoogleCalendar} className="gap-2">
+                <CalendarDays className="w-4 h-4" /> Google Calendar
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Button size="sm" className="gap-2 bg-indigo-600 hover:bg-indigo-700" onClick={() => navigate(`/meeting/${id}/execute`)}>
+            <PlayCircle className="w-4 h-4" /> Iniciar Reunião
           </Button>
+
+          <div className="flex items-center gap-2 ml-2 border-l pl-4">
+            {isSaving && (
+              <div className="flex items-center gap-2 text-xs text-slate-400 mr-2">
+                <Save className="w-3 h-3 animate-pulse" />
+              </div>
+            )}
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => handleAddItem('break')}>
+              <Coffee className="w-4 h-4" />
+              Pausa
+            </Button>
+            <Button size="sm" className="gap-2" onClick={() => handleAddItem('topic')}>
+              <Plus className="w-4 h-4" />
+              Tópico
+            </Button>
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="md:col-span-2 border-slate-200">
+        <div className="md:col-span-2 space-y-4">
+          {executionLogs.length > 0 && (
+            <Card className="border-indigo-100 bg-indigo-50/30">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5 text-indigo-600" />
+                    Relatório de Performance
+                  </CardTitle>
+                  <p className="text-sm text-slate-500">Análise baseada na última execução</p>
+                </div>
+                {!aiAnalysis && (
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => {
+                      if (!isPro) {
+                        setUpgradeFeature('análise de performance com IA');
+                        setIsUpgradeModalOpen(true);
+                      } else {
+                        handleAnalyzePerformance();
+                      }
+                    }}
+                    disabled={isAnalyzing}
+                  >
+                    {isAnalyzing ? 'Analisando...' : 'Análise com IA'}
+                  </Button>
+                )}
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div className="p-3 bg-white rounded-lg border border-indigo-100">
+                    <p className="text-xs text-slate-500 uppercase font-bold">Eficiência</p>
+                    <p className="text-2xl font-black text-indigo-600">
+                      {Math.round((executionLogs.reduce((acc, l) => acc + l.planned_duration, 0) / executionLogs.reduce((acc, l) => acc + (l.actual_duration || l.planned_duration), 0)) * 100)}%
+                    </p>
+                  </div>
+                  <div className="p-3 bg-white rounded-lg border border-indigo-100">
+                    <p className="text-xs text-slate-500 uppercase font-bold">Planejado</p>
+                    <p className="text-2xl font-black text-slate-700">
+                      {executionLogs.reduce((acc, l) => acc + l.planned_duration, 0)}m
+                    </p>
+                  </div>
+                  <div className="p-3 bg-white rounded-lg border border-indigo-100">
+                    <p className="text-xs text-slate-500 uppercase font-bold">Real</p>
+                    <p className="text-2xl font-black text-slate-700">
+                      {executionLogs.reduce((acc, l) => acc + (l.actual_duration || 0), 0)}m
+                    </p>
+                  </div>
+                </div>
+
+                {aiAnalysis && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-4 pt-4 border-t border-indigo-100"
+                  >
+                    <div>
+                      <h4 className="font-bold text-sm text-indigo-900 mb-1">Resumo da IA</h4>
+                      <p className="text-sm text-slate-600 leading-relaxed">{aiAnalysis.summary}</p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <h4 className="font-bold text-sm text-indigo-900 mb-2">Padrões Identificados</h4>
+                        <ul className="space-y-1">
+                          {aiAnalysis.patterns.map((p: string, i: number) => (
+                            <li key={i} className="text-xs text-slate-600 flex items-start gap-2">
+                              <span className="text-indigo-400 mt-0.5">•</span> {p}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-sm text-indigo-900 mb-2">Sugestões de Melhoria</h4>
+                        <ul className="space-y-1">
+                          {aiAnalysis.suggestions.map((s: string, i: number) => (
+                            <li key={i} className="text-xs text-slate-600 flex items-start gap-2">
+                              <span className="text-indigo-400 mt-0.5">→</span> {s}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          <Card className="border-slate-200">
           <CardHeader className="pb-0">
             <CardTitle className="text-lg font-semibold flex items-center justify-between">
               Cronograma da Reunião
@@ -526,8 +845,9 @@ export default function MeetingDetail() {
             </DndContext>
           </CardContent>
         </Card>
+      </div>
 
-        <div className="space-y-6">
+      <div className="space-y-6">
           <Card className="border-slate-200">
             <CardHeader>
               <CardTitle className="text-sm font-semibold uppercase tracking-wider text-slate-500">Resumo do Tempo</CardTitle>
@@ -576,6 +896,58 @@ export default function MeetingDetail() {
           </Card>
         </div>
       </div>
+
+      <UpgradeModal 
+        isOpen={isUpgradeModalOpen} 
+        onClose={() => setIsUpgradeModalOpen(false)} 
+        feature={upgradeFeature} 
+      />
+
+      <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Compartilhar Reunião</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Email do usuário</Label>
+              <Input 
+                placeholder="email@exemplo.com" 
+                value={shareEmail}
+                onChange={(e) => setShareEmail(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Permissão</Label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input 
+                    type="radio" 
+                    name="permission" 
+                    checked={sharePermission === 'view'} 
+                    onChange={() => setSharePermission('view')}
+                  />
+                  <span className="text-sm ml-2">Visualizar</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input 
+                    type="radio" 
+                    name="permission" 
+                    checked={sharePermission === 'edit'} 
+                    onChange={() => setSharePermission('edit')}
+                  />
+                  <span className="text-sm ml-2">Editar</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleShare} className="w-full gap-2">
+              <Send className="w-4 h-4" /> Enviar Convite
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
