@@ -36,6 +36,7 @@ export function UpgradeModal({ isOpen, onClose, feature }: UpgradeModalProps) {
         throw new Error(data.error || 'Erro ao criar sessão de checkout');
       }
     } catch (error: any) {
+      console.error("Upgrade error:", error);
       toast.error(error.message);
     } finally {
       setLoading(false);

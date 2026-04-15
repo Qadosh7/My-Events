@@ -6,6 +6,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 
 dotenv.config();
+console.log("Server starting. ENV:", process.env.NODE_ENV, "VERCEL:", process.env.VERCEL);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,12 +14,16 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(cors());
 
+// Health check
+app.get("/api/health", (req, res) => res.json({ status: "ok", time: new Date().toISOString() }));
+
 // Logging middleware
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.url}`);
   next();
 });
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_placeholder");
+console.log("Stripe initialized. Key present:", !!process.env.STRIPE_SECRET_KEY);
 
 // Stripe Webhook (needs raw body)
 app.post("/api/webhook", express.raw({ type: "application/json" }), async (req, res) => {
@@ -80,36 +85,31 @@ app.post("/api/create-checkout-session", async (req, res) => {
   }
 });
 
-async function startServer() {
+// Vite middleware for development
+if (process.env.NODE_ENV !== "production" && process.env.VERCEL !== "1") {
+  const { createServer: createViteServer } = await import("vite");
+  const vite = await createViteServer({
+    server: { middlewareMode: true },
+    appType: "spa",
+  });
+  app.use(vite.middlewares);
+  
   const PORT = 3000;
-
-  // Vite middleware for development
-  if (process.env.NODE_ENV !== "production" && process.env.VERCEL !== "1") {
-    const { createServer: createViteServer } = await import("vite");
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-    
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-    });
-  } else if (process.env.VERCEL !== "1") {
-    // Standard production (non-Vercel)
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
-    
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-    });
-  }
-  // On Vercel, we don't call app.listen() and we don't serve static files via Express
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
+} else if (process.env.VERCEL !== "1") {
+  // Standard production (non-Vercel)
+  const distPath = path.join(process.cwd(), "dist");
+  app.use(express.static(distPath));
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(distPath, "index.html"));
+  });
+  
+  const PORT = 3000;
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
 }
-
-startServer();
 
 export default app;
