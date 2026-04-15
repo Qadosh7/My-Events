@@ -3,6 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import Stripe from "stripe";
 import dotenv from "dotenv";
+import cors from "cors";
 
 dotenv.config();
 
@@ -10,7 +11,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
+app.use(cors());
+
+// Logging middleware
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.url}`);
+  next();
+});
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_placeholder");
 
 // Stripe Webhook (needs raw body)
 app.post("/api/webhook", express.raw({ type: "application/json" }), async (req, res) => {
@@ -42,6 +50,10 @@ app.use(express.json());
 app.post("/api/create-checkout-session", async (req, res) => {
   const { userId, email } = req.body;
 
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return res.status(500).json({ error: "Stripe secret key not configured" });
+  }
+
   try {
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
@@ -52,8 +64,8 @@ app.post("/api/create-checkout-session", async (req, res) => {
         },
       ],
       mode: "subscription",
-      success_url: `${process.env.APP_URL}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.APP_URL}/dashboard`,
+      success_url: `${process.env.APP_URL || req.headers.origin}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.APP_URL || req.headers.origin}/dashboard`,
       customer_email: email,
       client_reference_id: userId,
       metadata: {
@@ -63,6 +75,7 @@ app.post("/api/create-checkout-session", async (req, res) => {
 
     res.json({ id: session.id, url: session.url });
   } catch (error: any) {
+    console.error("Stripe Error:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -78,20 +91,23 @@ async function startServer() {
       appType: "spa",
     });
     app.use(vite.middlewares);
-  } else {
+    
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  } else if (process.env.VERCEL !== "1") {
+    // Standard production (non-Vercel)
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
     app.get("*", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
-  }
-
-  // Only listen if not running as a serverless function
-  if (process.env.VERCEL !== "1") {
+    
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on http://localhost:${PORT}`);
     });
   }
+  // On Vercel, we don't call app.listen() and we don't serve static files via Express
 }
 
 startServer();
