@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useSubscription } from '@/hooks/useSubscription';
 import { UpgradeModal } from '@/components/UpgradeModal';
+import { DatabaseCheck } from '@/components/DatabaseCheck';
 import { AlertCircle, Zap } from 'lucide-react';
 
 interface MeetingWithShare extends Meeting {
@@ -236,6 +237,8 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold text-foreground">Minhas Reuniões</h1>
           <p className="text-muted-foreground text-sm">Gerencie suas pautas e cronogramas de forma eficiente.</p>
         </div>
+
+        <DatabaseCheck />
 
         <div className="flex items-center gap-3">
           <div className="relative">

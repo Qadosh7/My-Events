@@ -18,6 +18,16 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  React.useEffect(() => {
+    const handleError = (event: PromiseRejectionEvent) => {
+      if (event.reason?.message?.includes('fetch') || event.reason?.name === 'TypeError') {
+        console.error('Erro de rede detectado:', event.reason);
+      }
+    };
+    window.addEventListener('unhandledrejection', handleError);
+    return () => window.removeEventListener('unhandledrejection', handleError);
+  }, []);
+
   return (
     <AuthProvider>
       <Router>

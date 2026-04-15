@@ -7,6 +7,7 @@ import cors from "cors";
 
 dotenv.config();
 console.log("Server starting. ENV:", process.env.NODE_ENV, "VERCEL:", process.env.VERCEL);
+console.log("Supabase Config Present:", !!process.env.VITE_SUPABASE_URL, !!process.env.VITE_SUPABASE_ANON_KEY);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
