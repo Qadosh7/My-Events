@@ -1,7 +1,11 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { MeetingExecutionLog, Topic, Break } from "@/types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const getAI = () => {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
+  if (!apiKey) return null;
+  return new GoogleGenAI({ apiKey });
+};
 
 export async function analyzeMeetingPerformance(
   meetingTitle: string,
@@ -9,6 +13,14 @@ export async function analyzeMeetingPerformance(
   topics: Topic[],
   breaks: Break[]
 ) {
+  const ai = getAI();
+  if (!ai) {
+    return {
+      summary: "IA não configurada. Adicione a VITE_GEMINI_API_KEY.",
+      patterns: [],
+      suggestions: ["Revise os tempos manualmente."]
+    };
+  }
   const performanceData = logs.map(log => {
     const item = log.item_type === 'topic' 
       ? topics.find(t => t.id === log.topic_id)
