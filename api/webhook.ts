@@ -17,6 +17,8 @@ export const config = {
 
 export default async function handler(req: any, res: any) {
   try {
+    console.log("Incoming Webhook request:", req.method, req.url);
+
     if (req.method !== 'POST') {
       return res.status(405).json({ error: 'Method not allowed' });
     }
@@ -25,7 +27,7 @@ export default async function handler(req: any, res: any) {
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
     if (!sig || !webhookSecret) {
-      console.error("Missing stripe-signature or STRIPE_WEBHOOK_SECRET");
+      console.error("CRITICAL: Missing stripe-signature or STRIPE_WEBHOOK_SECRET");
       return res.status(400).send('Webhook Error: Missing signature or secret');
     }
 
@@ -37,7 +39,7 @@ export default async function handler(req: any, res: any) {
 
     const event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
 
-    console.log("Stripe Webhook received:", event.type);
+    console.log("Stripe Webhook verified:", event.type);
 
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session;
@@ -62,6 +64,15 @@ export default async function handler(req: any, res: any) {
           console.log("Subscription updated in Supabase for user:", userId);
         }
       }
+    }
+
+    if (event.type === "invoice.payment_succeeded") {
+      console.log("Assinatura renovada com sucesso");
+    }
+
+    if (event.type === "customer.subscription.deleted") {
+      console.log("Assinatura cancelada pelo usuário");
+      // Opcional: atualizar status no Supabase para 'canceled'
     }
 
     return res.status(200).json({ received: true });
