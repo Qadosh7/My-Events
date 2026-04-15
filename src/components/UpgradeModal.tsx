@@ -18,6 +18,7 @@ export function UpgradeModal({ isOpen, onClose, feature }: UpgradeModalProps) {
   const handleUpgrade = async () => {
     setLoading(true);
     try {
+      console.log('Iniciando checkout fetch para /api/create-checkout-session');
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
         headers: {
@@ -28,6 +29,14 @@ export function UpgradeModal({ isOpen, onClose, feature }: UpgradeModalProps) {
           email: user?.email,
         }),
       });
+
+      console.log('Resposta do checkout:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Erro na resposta do checkout:', errorText);
+        throw new Error(`Erro ${response.status}: ${errorText || 'Falha na requisição'}`);
+      }
 
       const data = await response.json();
       if (data.url) {

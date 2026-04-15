@@ -60,6 +60,12 @@ app.post("/api/create-checkout-session", async (req, res) => {
   }
 
   try {
+    const protocol = req.headers["x-forwarded-proto"] || "http";
+    const host = req.headers.host;
+    const baseUrl = process.env.APP_URL || (req.headers.origin) || `${protocol}://${host}`;
+    
+    console.log("Creating checkout session for:", email, "Base URL:", baseUrl);
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: [
@@ -69,8 +75,8 @@ app.post("/api/create-checkout-session", async (req, res) => {
         },
       ],
       mode: "subscription",
-      success_url: `${process.env.APP_URL || req.headers.origin}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.APP_URL || req.headers.origin}/dashboard`,
+      success_url: `${baseUrl}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/dashboard`,
       customer_email: email,
       client_reference_id: userId,
       metadata: {
@@ -78,11 +84,18 @@ app.post("/api/create-checkout-session", async (req, res) => {
       },
     });
 
+    console.log("Session created:", session.id);
     res.json({ id: session.id, url: session.url });
   } catch (error: any) {
     console.error("Stripe Error:", error);
     res.status(500).json({ error: error.message });
   }
+});
+
+// Catch-all for API routes
+app.all("/api/*", (req, res) => {
+  console.log("404 API Route:", req.method, req.url);
+  res.status(404).json({ error: "API Route not found", path: req.url });
 });
 
 // Vite middleware for development
