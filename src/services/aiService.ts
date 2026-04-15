@@ -1,11 +1,7 @@
-import { GoogleGenAI, Type } from "@google/genai";
 import { MeetingExecutionLog, Topic, Break } from "@/types";
+import { GoogleGenAI, Type } from "@google/genai";
 
-const getAI = () => {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
-  if (!apiKey) return null;
-  return new GoogleGenAI({ apiKey });
-};
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 export async function analyzeMeetingPerformance(
   meetingTitle: string,
@@ -13,14 +9,6 @@ export async function analyzeMeetingPerformance(
   topics: Topic[],
   breaks: Break[]
 ) {
-  const ai = getAI();
-  if (!ai) {
-    return {
-      summary: "IA não configurada. Adicione a VITE_GEMINI_API_KEY.",
-      patterns: [],
-      suggestions: ["Revise os tempos manualmente."]
-    };
-  }
   const performanceData = logs.map(log => {
     const item = log.item_type === 'topic' 
       ? topics.find(t => t.id === log.topic_id)
@@ -34,21 +22,21 @@ export async function analyzeMeetingPerformance(
     };
   });
 
-  const prompt = `
-    Analise a performance desta reunião: "${meetingTitle}".
-    Dados de execução (em minutos):
-    ${JSON.stringify(performanceData, null, 2)}
-
-    Por favor, forneça:
-    1. Uma análise geral da eficiência (tempo planejado vs real).
-    2. Identificação de padrões (ex: tópicos que sempre estouram).
-    3. Sugestões práticas para as próximas reuniões (ajustes de duração, pausas, etc).
-    
-    Responda em Português, com um tom profissional e construtivo.
-    Retorne a resposta em formato JSON com os campos: "summary", "patterns" (array), "suggestions" (array).
-  `;
-
   try {
+    const prompt = `
+      Analise a performance desta reunião: "${meetingTitle}".
+      Dados de execução (em minutos):
+      ${JSON.stringify(performanceData, null, 2)}
+
+      Por favor, forneça:
+      1. Uma análise geral da eficiência (tempo planejado vs real).
+      2. Identificação de padrões (ex: tópicos que sempre estouram).
+      3. Sugestões práticas para as próximas reuniões (ajustes de duração, pausas, etc).
+      
+      Responda em Português, com um tom profissional e construtivo.
+      Retorne a resposta em formato JSON com os campos: "summary", "patterns" (array), "suggestions" (array).
+    `;
+
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: prompt,
@@ -66,7 +54,10 @@ export async function analyzeMeetingPerformance(
       }
     });
 
-    return JSON.parse(response.text);
+    const text = response.text;
+    if (!text) throw new Error("Resposta da IA vazia");
+    
+    return JSON.parse(text);
   } catch (error) {
     console.error('Error analyzing meeting performance:', error);
     return {

@@ -1,17 +1,12 @@
 {
   "version": 2,
   "functions": {
-    "api/index.ts": {
-      "runtime": "vercel-node@latest",
+    "api/*.ts": {
       "memory": 1024,
       "maxDuration": 10
     }
   },
   "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/index.ts"
-    },
     {
       "source": "/((?!api/|assets/|favicon.ico|logo.png|.*\\..*).*)",
       "destination": "/index.html"
