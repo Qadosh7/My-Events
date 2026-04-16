@@ -18,7 +18,6 @@ export default function LandingPage() {
           </div>
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
             <a href="#features" className="hover:text-primary transition-colors">Funcionalidades</a>
-            <a href="#pricing" className="hover:text-primary transition-colors">Preços</a>
             <a href="#testimonials" className="hover:text-primary transition-colors">Depoimentos</a>
           </div>
           <div className="flex items-center gap-4">
@@ -128,74 +127,6 @@ export default function LandingPage() {
                 <p className="text-slate-600 leading-relaxed">{f.desc}</p>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing */}
-      <section id="pricing" className="py-24 px-6 bg-slate-900 text-white rounded-[3rem] mx-4 my-12">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center max-w-3xl mx-auto mb-20">
-            <h2 className="text-4xl font-bold tracking-tight mb-4">Planos simples para todos os tamanhos</h2>
-            <p className="text-slate-400">Escolha o plano que melhor se adapta às suas necessidades.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            {/* Free Plan */}
-            <div className="p-10 rounded-3xl bg-slate-800 border border-slate-700">
-              <h3 className="text-xl font-bold mb-2">Plano Gratuito</h3>
-              <div className="flex items-baseline gap-1 mb-6">
-                <span className="text-4xl font-black">R$ 0</span>
-                <span className="text-slate-400">/mês</span>
-              </div>
-              <ul className="space-y-4 mb-10">
-                <li className="flex items-center gap-3 text-slate-300">
-                  <CheckCircle2 className="w-5 h-5 text-primary" /> Máximo de 5 reuniões
-                </li>
-                <li className="flex items-center gap-3 text-slate-300">
-                  <CheckCircle2 className="w-5 h-5 text-primary" /> 10 tópicos por reunião
-                </li>
-                <li className="flex items-center gap-3 text-slate-300 opacity-50">
-                  <CheckCircle2 className="w-5 h-5" /> Sem exportação PDF
-                </li>
-                <li className="flex items-center gap-3 text-slate-300 opacity-50">
-                  <CheckCircle2 className="w-5 h-5" /> Sem IA avançada
-                </li>
-              </ul>
-              <Link to="/register">
-                <Button variant="outline" className="w-full h-12 font-bold border-slate-600 hover:bg-slate-700">Começar Agora</Button>
-              </Link>
-            </div>
-
-            {/* Pro Plan */}
-            <div className="p-10 rounded-3xl bg-primary text-white shadow-2xl shadow-primary/40 relative overflow-hidden">
-              <div className="absolute top-4 right-4 bg-white/20 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest">Mais Popular</div>
-              <h3 className="text-xl font-bold mb-2">Plano Pro</h3>
-              <div className="flex items-baseline gap-1 mb-6">
-                <span className="text-4xl font-black">R$ 49</span>
-                <span className="text-primary-foreground/70">/mês</span>
-              </div>
-              <ul className="space-y-4 mb-10">
-                <li className="flex items-center gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-white" /> Reuniões ilimitadas
-                </li>
-                <li className="flex items-center gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-white" /> IA completa e resumos
-                </li>
-                <li className="flex items-center gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-white" /> Exportação PDF profissional
-                </li>
-                <li className="flex items-center gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-white" /> Compartilhamento ilimitado
-                </li>
-                <li className="flex items-center gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-white" /> Relatórios de performance
-                </li>
-              </ul>
-              <Link to="/register">
-                <Button className="w-full h-12 font-bold bg-white text-primary hover:bg-slate-100">Assinar Agora</Button>
-              </Link>
-            </div>
           </div>
         </div>
       </section>

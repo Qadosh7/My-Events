@@ -1,13 +1,10 @@
 import { Navigate, Outlet, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { LogOut, Calendar, LayoutDashboard, Users, CalendarDays, Settings, Gift } from 'lucide-react';
-import { useState } from 'react';
-import { ReferralModal } from '@/components/ReferralModal';
+import { LogOut, Calendar, LayoutDashboard, Users, CalendarDays, Settings } from 'lucide-react';
 
 export function Layout() {
   const { user, loading, signOut } = useAuth();
-  const [isReferralModalOpen, setIsReferralModalOpen] = useState(false);
 
   if (loading) {
     return (
@@ -59,16 +56,6 @@ export function Layout() {
             <Settings className="w-4 h-4" />
             Configurações
           </Link>
-          
-          <div className="pt-4">
-            <button 
-              onClick={() => setIsReferralModalOpen(true)}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-primary/10 hover:text-primary text-primary bg-primary/5 w-full text-left"
-            >
-              <Gift className="w-4 h-4" />
-              Convide e Ganhe
-            </button>
-          </div>
         </nav>
 
         <div className="p-4 border-t border-sidebar-border space-y-4">
@@ -100,11 +87,6 @@ export function Layout() {
           </div>
         </main>
       </div>
-
-      <ReferralModal 
-        isOpen={isReferralModalOpen} 
-        onClose={() => setIsReferralModalOpen(false)} 
-      />
     </div>
   );
 }

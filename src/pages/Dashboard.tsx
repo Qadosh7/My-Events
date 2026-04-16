@@ -13,10 +13,6 @@ import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { useSubscription } from '@/hooks/useSubscription';
-import { UpgradeModal } from '@/components/UpgradeModal';
-import { DatabaseCheck } from '@/components/DatabaseCheck';
-import { AlertCircle, Zap } from 'lucide-react';
 
 interface MeetingWithShare extends Meeting {
   is_shared?: boolean;
@@ -30,9 +26,6 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newMeeting, setNewMeeting] = useState({ title: '', description: '', date: format(new Date(), "yyyy-MM-dd'T'HH:mm") });
-  const { isPro, loading: subLoading } = useSubscription();
-  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
-  const [upgradeFeature, setUpgradeFeature] = useState('');
 
   const fetchMeetings = async () => {
     if (!user) return;
@@ -203,42 +196,13 @@ export default function Dashboard() {
     m.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const ownedMeetingsCount = meetings.filter(m => !m.is_shared).length;
-  const isAtLimit = !isPro && ownedMeetingsCount >= 5;
-
-  const handleOpenCreateModal = () => {
-    if (isAtLimit) {
-      setUpgradeFeature('reuniões ilimitadas');
-      setIsUpgradeModalOpen(true);
-    } else {
-      setIsCreateModalOpen(true);
-    }
-  };
-
   return (
     <div className="space-y-6">
-      {!isPro && ownedMeetingsCount >= 4 && (
-        <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex items-center justify-between mb-2">
-          <div className="flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-amber-600" />
-            <p className="text-sm text-amber-800 font-medium">
-              Você usou {ownedMeetingsCount} de 5 reuniões do plano gratuito. 
-              {ownedMeetingsCount === 5 ? ' Você atingiu o limite.' : ' Faça o upgrade para criar reuniões ilimitadas.'}
-            </p>
-          </div>
-          <Button variant="outline" size="sm" className="bg-white border-amber-200 text-amber-700 hover:bg-amber-100" onClick={() => { setUpgradeFeature('reuniões ilimitadas'); setIsUpgradeModalOpen(true); }}>
-            Fazer Upgrade
-          </Button>
-        </div>
-      )}
-
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div className="title-area">
           <h1 className="text-2xl font-bold text-foreground">Minhas Reuniões</h1>
           <p className="text-muted-foreground text-sm">Gerencie suas pautas e cronogramas de forma eficiente.</p>
         </div>
-
-        <DatabaseCheck />
 
         <div className="flex items-center gap-3">
           <div className="relative">
@@ -252,7 +216,7 @@ export default function Dashboard() {
           </div>
           
           <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-            <Button className="gap-2 shadow-sm" onClick={handleOpenCreateModal}>
+            <Button className="gap-2 shadow-sm" onClick={() => setIsCreateModalOpen(true)}>
               <Plus className="w-4 h-4" />
               Nova Reunião
             </Button>
@@ -304,12 +268,6 @@ export default function Dashboard() {
           </Dialog>
         </div>
       </div>
-
-      <UpgradeModal 
-        isOpen={isUpgradeModalOpen} 
-        onClose={() => setIsUpgradeModalOpen(false)} 
-        feature={upgradeFeature} 
-      />
 
       {meetings.length > 0 && !loading && !meetings.some(m => new Date(m.date) > new Date()) && meetings.find(m => !m.is_shared) && (
         <div className="bg-primary/5 border border-primary/10 p-6 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 mb-2">
@@ -412,7 +370,7 @@ export default function Dashboard() {
           </div>
           <h3 className="text-lg font-bold text-foreground">Nenhuma reunião encontrada</h3>
           <p className="text-muted-foreground text-sm mt-1">Crie sua primeira reunião para começar a organizar sua pauta.</p>
-          <Button className="mt-6 gap-2" onClick={handleOpenCreateModal}>
+          <Button className="mt-6 gap-2" onClick={() => setIsCreateModalOpen(true)}>
             <Plus className="w-4 h-4" />
             Nova Reunião
           </Button>

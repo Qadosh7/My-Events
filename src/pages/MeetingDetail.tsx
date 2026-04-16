@@ -35,8 +35,6 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { motion, AnimatePresence } from 'motion/react';
-import { useSubscription } from '@/hooks/useSubscription';
-import { UpgradeModal } from '@/components/UpgradeModal';
 
 import { analyzeMeetingPerformance } from '@/services/aiService';
 
@@ -219,9 +217,6 @@ export default function MeetingDetail() {
   const [executionLogs, setExecutionLogs] = useState<MeetingExecutionLog[]>([]);
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const { isPro, loading: subLoading } = useSubscription();
-  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
-  const [upgradeFeature, setUpgradeFeature] = useState('');
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -328,11 +323,6 @@ export default function MeetingDetail() {
     const orderIndex = items.length;
 
     const topicsCount = items.filter(i => i.itemType === 'topic').length;
-    if (type === 'topic' && !isPro && topicsCount >= 10) {
-      setUpgradeFeature('tópicos ilimitados');
-      setIsUpgradeModalOpen(true);
-      return;
-    }
 
     try {
       if (type === 'topic') {
@@ -624,12 +614,7 @@ export default function MeetingDetail() {
             size="sm" 
             className="gap-2"
             onClick={() => {
-              if (!isPro) {
-                setUpgradeFeature('compartilhamento de reuniões');
-                setIsUpgradeModalOpen(true);
-              } else {
-                setIsShareDialogOpen(true);
-              }
+              setIsShareDialogOpen(true);
             }}
           >
             <Share2 className="w-4 h-4" /> Compartilhar
@@ -644,12 +629,7 @@ export default function MeetingDetail() {
             <DropdownMenuContent align="end">
               <DropdownMenuItem 
                 onClick={() => {
-                  if (!isPro) {
-                    setUpgradeFeature('exportação PDF profissional');
-                    setIsUpgradeModalOpen(true);
-                  } else {
-                    exportToPDF();
-                  }
+                  exportToPDF();
                 }} 
                 className="gap-2"
               >
@@ -703,12 +683,7 @@ export default function MeetingDetail() {
                     size="sm" 
                     variant="outline" 
                     onClick={() => {
-                      if (!isPro) {
-                        setUpgradeFeature('análise de performance com IA');
-                        setIsUpgradeModalOpen(true);
-                      } else {
-                        handleAnalyzePerformance();
-                      }
+                      handleAnalyzePerformance();
                     }}
                     disabled={isAnalyzing}
                   >
@@ -896,12 +871,6 @@ export default function MeetingDetail() {
           </Card>
         </div>
       </div>
-
-      <UpgradeModal 
-        isOpen={isUpgradeModalOpen} 
-        onClose={() => setIsUpgradeModalOpen(false)} 
-        feature={upgradeFeature} 
-      />
 
       <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
         <DialogContent>

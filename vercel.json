@@ -1,14 +1,8 @@
 {
   "version": 2,
-  "functions": {
-    "api/*.ts": {
-      "memory": 1024,
-      "maxDuration": 10
-    }
-  },
   "rewrites": [
     {
-      "source": "/((?!api/|assets/|favicon.ico|logo.png|.*\\..*).*)",
+      "source": "/((?!assets/|favicon.ico|logo.png|.*\\..*).*)",
       "destination": "/index.html"
     }
   ]
