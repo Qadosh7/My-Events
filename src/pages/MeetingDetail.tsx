@@ -17,6 +17,7 @@ import {
 import { format, addMinutes } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { handleNetworkError } from '@/lib/utils';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { 
@@ -261,7 +262,7 @@ export default function MeetingDetail() {
       
       setExecutionLogs(logsData || []);
     } catch (error) {
-      toast.error('Erro ao carregar dados da reunião');
+      toast.error(handleNetworkError(error));
       navigate('/');
     } finally {
       setLoading(false);

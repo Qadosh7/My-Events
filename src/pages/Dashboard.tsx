@@ -10,6 +10,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import { handleNetworkError } from '@/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -63,7 +64,7 @@ export default function Dashboard() {
 
       setMeetings(allMeetings);
     } catch (error) {
-      toast.error('Erro ao carregar reuniões');
+      toast.error(handleNetworkError(error));
       console.error(error);
     } finally {
       setLoading(false);
@@ -92,7 +93,7 @@ export default function Dashboard() {
       .single();
 
     if (error) {
-      toast.error('Erro ao criar reunião');
+      toast.error(handleNetworkError(error));
     } else {
       toast.success('Reunião criada com sucesso!');
       setIsCreateModalOpen(false);

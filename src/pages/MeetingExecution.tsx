@@ -14,6 +14,7 @@ import {
 import { format, differenceInSeconds, addSeconds } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { handleNetworkError } from '@/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
 
@@ -70,7 +71,7 @@ export default function MeetingExecution() {
       }
     } catch (error) {
       console.error('Error fetching meeting:', error);
-      toast.error('Erro ao carregar reunião');
+      toast.error(handleNetworkError(error));
     } finally {
       setLoading(false);
     }

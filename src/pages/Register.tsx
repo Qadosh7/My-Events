@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { handleNetworkError } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,7 +29,7 @@ export default function Register() {
       toast.success('Conta criada com sucesso! Você já pode fazer login.');
       navigate('/login');
     } catch (error: any) {
-      toast.error(error.message || 'Erro ao criar conta');
+      toast.error(handleNetworkError(error));
     } finally {
       setLoading(false);
     }

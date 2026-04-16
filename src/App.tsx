@@ -9,6 +9,8 @@ const MeetingDetail = React.lazy(() => import('@/pages/MeetingDetail'));
 const MeetingExecution = React.lazy(() => import('@/pages/MeetingExecution'));
 const LandingPage = React.lazy(() => import('@/pages/LandingPage'));
 import { Toaster } from '@/components/ui/sonner';
+import { isSupabaseConfigured } from '@/lib/supabase';
+import { AlertCircle } from 'lucide-react';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -31,6 +33,12 @@ export default function App() {
   return (
     <AuthProvider>
       <Router>
+        {!isSupabaseConfigured && (
+          <div className="fixed top-0 left-0 right-0 z-[100] bg-amber-500 text-white px-4 py-2 flex items-center justify-center gap-2 text-sm font-medium shadow-lg">
+            <AlertCircle className="w-4 h-4" />
+            Configuração do Supabase pendente. Adicione as chaves VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY nos segredos.
+          </div>
+        )}
         <React.Suspense fallback={
           <div className="flex items-center justify-center min-h-screen">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
